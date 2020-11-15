@@ -36,8 +36,6 @@ A minimal PyTorch implementation of YOLOv4.
 │   └── yolo_layer.py
 ```
 
-![image](https://user-gold-cdn.xitu.io/2020/4/26/171b5a6c8b3bd513?w=768&h=576&f=jpeg&s=78882)
-
 # 0. Weights Download
 
 ## 0.1 darknet
