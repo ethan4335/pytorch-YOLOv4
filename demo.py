@@ -10,6 +10,10 @@
     @Detail    :
 '''
 
+'''
+terminal: python demo.py -imgfile ./data/test.jpg
+'''
+
 # import sys
 # import time
 # from PIL import Image, ImageDraw
@@ -22,7 +26,8 @@ import argparse
 """hyper parameters"""
 use_cuda = False
 
-def detect_cv2(cfgfile, weightfile, imgfile):
+
+def detect_cv2(cfgfile, weightfile, imgfile, outfile):
     import cv2
     m = Darknet(cfgfile)
 
@@ -43,9 +48,12 @@ def detect_cv2(cfgfile, weightfile, imgfile):
     class_names = load_class_names(namesfile)
 
     img = cv2.imread(imgfile)
+    print('demo pic size:', img.shape)
     sized = cv2.resize(img, (m.width, m.height))
+    print('demo pic resize to:',sized.shape)
     sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
 
+    boxes = []
     for i in range(2):
         start = time.time()
         boxes = do_detect(m, sized, 0.4, 0.6, use_cuda)
@@ -53,7 +61,7 @@ def detect_cv2(cfgfile, weightfile, imgfile):
         if i == 1:
             print('%s: Predicted in %f seconds.' % (imgfile, (finish - start)))
 
-    plot_boxes_cv2(img, boxes[0], savename='./predictions/demo_p3.jpg', class_names=class_names)
+    plot_boxes_cv2(img, boxes[0], savename=outfile, class_names=class_names)
 
 
 def detect_cv2_camera(cfgfile, weightfile):
@@ -96,8 +104,9 @@ def detect_cv2_camera(cfgfile, weightfile):
 
         cv2.imshow('Yolo demo', result_img)
         cv2.waitKey(1)
+        cap.release()
 
-    cap.release()
+    # cap.release()
 
 
 def detect_skimage(cfgfile, weightfile, imgfile):
@@ -124,6 +133,7 @@ def detect_skimage(cfgfile, weightfile, imgfile):
     img = io.imread(imgfile)
     sized = resize(img, (m.width, m.height)) * 255
 
+    boxes = []
     for i in range(2):
         start = time.time()
         boxes = do_detect(m, sized, 0.4, 0.4, use_cuda)
@@ -144,6 +154,9 @@ def get_args():
     parser.add_argument('-imgfile', type=str,
                         default='./data/dog.jpg',
                         help='path of your image file.', dest='imgfile')
+    parser.add_argument('-outfile', type=str,
+                        default='./predictions/prediction_1.jpg',
+                        help='path of your image out path.', dest='outfile')
     args = parser.parse_args()
 
     return args
@@ -152,7 +165,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     if args.imgfile:
-        detect_cv2(args.cfgfile, args.weightfile, args.imgfile)
+        detect_cv2(args.cfgfile, args.weightfile, args.imgfile,args.outfile)
         # detect_imges(args.cfgfile, args.weightfile)
         # detect_cv2(args.cfgfile, args.weightfile, args.imgfile)
         # detect_skimage(args.cfgfile, args.weightfile, args.imgfile)
