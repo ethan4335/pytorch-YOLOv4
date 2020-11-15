@@ -20,7 +20,7 @@ from tool.darknet2pytorch import Darknet
 import argparse
 
 """hyper parameters"""
-use_cuda = True
+use_cuda = False
 
 def detect_cv2(cfgfile, weightfile, imgfile):
     import cv2
@@ -53,7 +53,7 @@ def detect_cv2(cfgfile, weightfile, imgfile):
         if i == 1:
             print('%s: Predicted in %f seconds.' % (imgfile, (finish - start)))
 
-    plot_boxes_cv2(img, boxes[0], savename='predictions.jpg', class_names=class_names)
+    plot_boxes_cv2(img, boxes[0], savename='./predictions/demo_p3.jpg', class_names=class_names)
 
 
 def detect_cv2_camera(cfgfile, weightfile):
@@ -131,7 +131,7 @@ def detect_skimage(cfgfile, weightfile, imgfile):
         if i == 1:
             print('%s: Predicted in %f seconds.' % (imgfile, (finish - start)))
 
-    plot_boxes_cv2(img, boxes, savename='predictions.jpg', class_names=class_names)
+    plot_boxes_cv2(img, boxes, savename='predictions3.jpg', class_names=class_names)
 
 
 def get_args():
@@ -139,10 +139,10 @@ def get_args():
     parser.add_argument('-cfgfile', type=str, default='./cfg/yolov4.cfg',
                         help='path of cfg file', dest='cfgfile')
     parser.add_argument('-weightfile', type=str,
-                        default='./checkpoints/Yolov4_epoch1.pth',
+                        default='./weight/yolov4.weights',
                         help='path of trained model.', dest='weightfile')
     parser.add_argument('-imgfile', type=str,
-                        default='./data/mscoco2017/train2017/190109_180343_00154162.jpg',
+                        default='./data/dog.jpg',
                         help='path of your image file.', dest='imgfile')
     args = parser.parse_args()
 

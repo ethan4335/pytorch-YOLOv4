@@ -17,7 +17,7 @@ import os
 
 """hyper parameters"""
 json_file_path = 'E:/Dataset/mscoco2017/annotations/instances_train2017.json'
-images_dir_path = 'mscoco2017/train2017/'
+images_dir_path = 'D:/work_source/CV_Project/datasets/footbridge_20201111/train2/pic/'
 output_path = '../data/val.txt'
 
 """load json file"""
