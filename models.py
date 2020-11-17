@@ -4,6 +4,10 @@ import torch.nn.functional as F
 from tool.torch_utils import *
 from tool.yolo_layer import YoloLayer
 
+import warnings
+import matplotlib.cbook
+warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
+
 
 class Mish(torch.nn.Module):
     def __init__(self):
@@ -327,7 +331,7 @@ class Yolov4Head(nn.Module):
 
         self.conv1 = Conv_Bn_Activation(128, 256, 3, 1, 'leaky')
         self.conv2 = Conv_Bn_Activation(256, output_ch, 1, 1, 'linear', bn=False, bias=True)
-
+#注意这个类别是否正确，
         self.yolo1 = YoloLayer(
                                 anchor_mask=[0, 1, 2], num_classes=n_classes,
                                 anchors=[12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401],
@@ -407,7 +411,8 @@ class Yolov4Head(nn.Module):
 
 
 class Yolov4(nn.Module):
-    def __init__(self, yolov4conv137weight=None, n_classes=80, inference=False):
+    # 写死了？？？
+    def __init__(self, yolov4conv137weight=None, n_classes=4, inference=False):
         super().__init__()
 
         output_ch = (4 + 1 + n_classes) * 3
@@ -448,62 +453,62 @@ class Yolov4(nn.Module):
         output = self.head(x20, x13, x6)
         return output
 
-
-if __name__ == "__main__":
-    import sys
-    import cv2
-
-    namesfile = None
-    if len(sys.argv) == 6:
-        n_classes = int(sys.argv[1])
-        weightfile = sys.argv[2]
-        imgfile = sys.argv[3]
-        height = int(sys.argv[4])
-        width = int(sys.argv[5])
-    elif len(sys.argv) == 7:
-        n_classes = int(sys.argv[1])
-        weightfile = sys.argv[2]
-        imgfile = sys.argv[3]
-        height = sys.argv[4]
-        width = int(sys.argv[5])
-        namesfile = int(sys.argv[6])
-    else:
-        print('Usage: ')
-        print('  python models.py num_classes weightfile imgfile namefile')
-
-    model = Yolov4(yolov4conv137weight=None, n_classes=n_classes, inference=True)
-
-    pretrained_dict = torch.load(weightfile, map_location=torch.device('cuda'))
-    model.load_state_dict(pretrained_dict)
-
-    use_cuda = True
-    if use_cuda:
-        model.cuda()
-
-    img = cv2.imread(imgfile)
-
-    # Inference input size is 416*416 does not mean training size is the same
-    # Training size could be 608*608 or even other sizes
-    # Optional inference sizes:
-    #   Hight in {320, 416, 512, 608, ... 320 + 96 * n}
-    #   Width in {320, 416, 512, 608, ... 320 + 96 * m}
-    sized = cv2.resize(img, (width, height))
-    sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
-
-    from tool.utils import load_class_names, plot_boxes_cv2
-    from tool.torch_utils import do_detect
-
-    for i in range(2):  # This 'for' loop is for speed check
-                        # Because the first iteration is usually longer
-        boxes = do_detect(model, sized, 0.4, 0.6, use_cuda)
-
-    if namesfile == None:
-        if n_classes == 20:
-            namesfile = 'data/voc.names'
-        elif n_classes == 80:
-            namesfile = 'data/coco.names'
-        else:
-            print("please give namefile")
-
-    class_names = load_class_names(namesfile)
-    plot_boxes_cv2(img, boxes[0], 'predictions.jpg', class_names)
+#
+# if __name__ == "__main__":
+#     import sys
+#     import cv2
+#
+#     namesfile = None
+#     if len(sys.argv) == 6:
+#         n_classes = int(sys.argv[1])
+#         weightfile = sys.argv[2]
+#         imgfile = sys.argv[3]
+#         height = int(sys.argv[4])
+#         width = int(sys.argv[5])
+#     elif len(sys.argv) == 7:
+#         n_classes = int(sys.argv[1])
+#         weightfile = sys.argv[2]
+#         imgfile = sys.argv[3]
+#         height = sys.argv[4]
+#         width = int(sys.argv[5])
+#         namesfile = int(sys.argv[6])
+#     else:
+#         print('Usage: ')
+#         print('  python models.py num_classes weightfile imgfile namefile')
+#
+#     model = Yolov4(yolov4conv137weight=None, n_classes=n_classes, inference=True)
+#
+#     pretrained_dict = torch.load(weightfile, map_location=torch.device('cuda'))
+#     model.load_state_dict(pretrained_dict)
+#
+#     use_cuda = True
+#     if use_cuda:
+#         model.cuda()
+#
+#     img = cv2.imread(imgfile)
+#
+#     # Inference input size is 416*416 does not mean training size is the same
+#     # Training size could be 608*608 or even other sizes
+#     # Optional inference sizes:
+#     #   Hight in {320, 416, 512, 608, ... 320 + 96 * n}
+#     #   Width in {320, 416, 512, 608, ... 320 + 96 * m}
+#     sized = cv2.resize(img, (width, height))
+#     sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
+#
+#     from tool.utils import load_class_names, plot_boxes_cv2
+#     from tool.torch_utils import do_detect
+#
+#     for i in range(2):  # This 'for' loop is for speed check
+#                         # Because the first iteration is usually longer
+#         boxes = do_detect(model, sized, 0.4, 0.6, use_cuda)
+#
+#     if namesfile == None:
+#         if n_classes == 20:
+#             namesfile = 'data/voc.names'
+#         elif n_classes == 80:
+#             namesfile = 'data/coco.names'
+#         else:
+#             print("please give namefile")
+#
+#     class_names = load_class_names(namesfile)
+#     plot_boxes_cv2(img, boxes[0], 'predictions.jpg', class_names)

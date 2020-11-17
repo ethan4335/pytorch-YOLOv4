@@ -153,10 +153,16 @@ def convert_to_coco_api(ds, bbox_fmt='voc'):
     dataset = {'images': [], 'categories': [], 'annotations': []}
     categories = set()
     for img_idx in range(len(ds)):
+        print(range(len(ds)))
         # find better way to get target
         # targets = ds.get_annotations(img_idx)
-        img, targets = ds[img_idx]
+        print(type(ds))
+        # print(ds.shape())
+        # print(type(ds[0]))
+        # print(ds[0])
+        img, targets = ds[img_idx] # 无法计算得到，很卡
         image_id = targets["image_id"].item()
+        print('convert_to_coco: ',image_id)
         img_dict = {}
         img_dict['id'] = image_id
         img_dict['height'] = img.shape[-2]
@@ -187,6 +193,7 @@ def convert_to_coco_api(ds, bbox_fmt='voc'):
         for i in range(num_objs):
             ann = {}
             ann['image_id'] = image_id
+            print("for: ",image_id)
             ann['bbox'] = bboxes[i]
             ann['category_id'] = labels[i]
             categories.add(labels[i])
@@ -203,6 +210,7 @@ def convert_to_coco_api(ds, bbox_fmt='voc'):
     dataset['categories'] = [{'id': i} for i in sorted(categories)]
     coco_ds.dataset = dataset
     coco_ds.createIndex()
+    print("finish convert_to_coco_api...")
     return coco_ds
 
 

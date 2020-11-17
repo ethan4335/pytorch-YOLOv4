@@ -10,6 +10,11 @@
     @Detail    :
 
 '''
+from cfg_footbridge import Cfg_footbridge
+
+'''
+when you run the modules.py, you should use pytorch weights.
+'''
 import time
 import logging
 import os, sys, math
@@ -29,13 +34,19 @@ from tensorboardX import SummaryWriter
 from easydict import EasyDict as edict
 
 from dataset import Yolo_dataset
-from cfg import Cfg
+# from cfg import Cfg
 from models import Yolov4
 from tool.darknet2pytorch import Darknet
 
 from tool.tv_reference.utils import collate_fn as val_collate
 from tool.tv_reference.coco_utils import convert_to_coco_api
 from tool.tv_reference.coco_eval import CocoEvaluator
+# from pycocotools import
+
+import warnings
+import matplotlib.cbook
+
+warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
 
 def bboxes_iou(bboxes_a, bboxes_b, xyxy=True, GIoU=False, DIoU=False, CIoU=False):
@@ -240,7 +251,7 @@ class Yolo_loss(nn.Module):
             n_ch = 5 + self.n_classes
 
             output = output.view(batchsize, self.n_anchors, n_ch, fsize, fsize)
-            output = output.permute(0, 1, 3, 4, 2)  # .contiguous()
+            output = output.permute(0, 1, 3, 4, 2).contiguous()
 
             # logistic activation for xy, obj, cls
             output[..., np.r_[:2, 4:n_ch]] = torch.sigmoid(output[..., np.r_[:2, 4:n_ch]])
@@ -289,12 +300,14 @@ def collate(batch):
 
 
 def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=20, img_scale=0.5):
+    # 阅读数据，关联了图片地址和标注信息
     train_dataset = Yolo_dataset(config.train_label, config, train=True)
     val_dataset = Yolo_dataset(config.val_label, config, train=False)
 
     n_train = len(train_dataset)
     n_val = len(val_dataset)
 
+    # 加载数据，加载为什么形式？[question]
     train_loader = DataLoader(train_dataset, batch_size=config.batch // config.subdivisions, shuffle=True,
                               num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate)
 
@@ -319,10 +332,12 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
         Validation size: {n_val}
         Checkpoints:     {save_cp}
         Device:          {device.type}
-        Images size:     {config.width}
+        Images size:     {config.width},{config.height}
         Optimizer:       {config.TRAIN_OPTIMIZER}
         Dataset classes: {config.classes}
+        Train pic path:  {config.dataset_dir}
         Train label path:{config.train_label}
+        Val label path:  {config.val_label}
         Pretrained:
     ''')
 
@@ -414,7 +429,7 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
 
             if cfg.use_darknet_cfg:
                 eval_model = Darknet(cfg.cfgfile, inference=True)
-            else:
+            else:#test 6
                 eval_model = Yolov4(cfg.pretrained, n_classes=cfg.classes, inference=True)
             # eval_model = Yolov4(yolov4conv137weight=None, n_classes=config.classes, inference=True)
             if torch.cuda.device_count() > 1:
@@ -469,7 +484,7 @@ def evaluate(model, data_loader, cfg, device, logger=None, **kwargs):
     # header = 'Test:'
 
     coco = convert_to_coco_api(data_loader.dataset, bbox_fmt='coco')
-    coco_evaluator = CocoEvaluator(coco, iou_types = ["bbox"], bbox_fmt='coco')
+    coco_evaluator = CocoEvaluator(coco, iou_types=["bbox"], bbox_fmt='coco')
 
     for images, targets in data_loader:
         model_input = [[cv2.resize(img, (cfg.w, cfg.h))] for img in images]
@@ -494,11 +509,11 @@ def evaluate(model, data_loader, cfg, device, logger=None, **kwargs):
             img_height, img_width = img.shape[:2]
             # boxes = output[...,:4].copy()  # output boxes in yolo format
             boxes = boxes.squeeze(2).cpu().detach().numpy()
-            boxes[...,2:] = boxes[...,2:] - boxes[...,:2] # Transform [x1, y1, x2, y2] to [x1, y1, w, h]
-            boxes[...,0] = boxes[...,0]*img_width
-            boxes[...,1] = boxes[...,1]*img_height
-            boxes[...,2] = boxes[...,2]*img_width
-            boxes[...,3] = boxes[...,3]*img_height
+            boxes[..., 2:] = boxes[..., 2:] - boxes[..., :2]  # Transform [x1, y1, x2, y2] to [x1, y1, w, h]
+            boxes[..., 0] = boxes[..., 0] * img_width
+            boxes[..., 1] = boxes[..., 1] * img_height
+            boxes[..., 2] = boxes[..., 2] * img_width
+            boxes[..., 3] = boxes[..., 3] * img_height
             boxes = torch.as_tensor(boxes, dtype=torch.float32)
             # confs = output[...,4:].copy()
             confs = confs.cpu().detach().numpy()
@@ -526,7 +541,7 @@ def evaluate(model, data_loader, cfg, device, logger=None, **kwargs):
 
 
 def get_args(**kwargs):
-    cfg = kwargs
+    cfg2 = kwargs
     parser = argparse.ArgumentParser(description='Train the Model on images and target masks',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
@@ -537,11 +552,11 @@ def get_args(**kwargs):
                         help='Load model from a .pth file')
     parser.add_argument('-g', '--gpu', metavar='G', type=str, default='-1',
                         help='GPU', dest='gpu')
-    parser.add_argument('-dir', '--data-dir', type=str, default=None,
-                        help='dataset dir', dest='dataset_dir')
-    parser.add_argument('-pretrained', type=str, default=None, help='pretrained yolov4.conv.137')
-    parser.add_argument('-classes', type=int, default=80, help='dataset classes')
-    parser.add_argument('-train_label_path', dest='train_label', type=str, default='train.txt', help="train label path")
+    # parser.add_argument('-dir', '--data-dir', type=str, default=None,help='dataset picture dir', dest='dataset_dir')
+    # parser.add_argument('-pretrained', type=str, default=None, help='pretrained yolov4.conv.137')
+    # parser.add_argument('-classes', type=int, default=None, help='dataset classes')
+    # parser.add_argument('-train_label_path', dest='train_label', type=str, default=None, help="train label path")
+    # parser.add_argument('-use_darknet_cfg', dest='dark_net', type=bool, default=False, help="if use darknet to train a model")
     parser.add_argument(
         '-optimizer', type=str, default='adam',
         help='training optimizer',
@@ -558,9 +573,9 @@ def get_args(**kwargs):
 
     # for k in args.keys():
     #     cfg[k] = args.get(k)
-    cfg.update(args)
+    cfg2.update(args)
 
-    return edict(cfg)
+    return edict(cfg2)
 
 
 def init_logger(log_file=None, log_dir=None, log_level=logging.INFO, mode='w', stdout=True):
@@ -568,6 +583,7 @@ def init_logger(log_file=None, log_dir=None, log_level=logging.INFO, mode='w', s
     log_dir: 日志文件的文件夹路径
     mode: 'a', append; 'w', 覆盖原文件写入.
     """
+
     def get_date_str():
         now = datetime.datetime.now()
         return now.strftime('%Y-%m-%d_%H-%M-%S')
@@ -603,20 +619,64 @@ def _get_date_str():
     return now.strftime('%Y-%m-%d_%H-%M')
 
 
+def clear_log_folder(path, num):
+    file_count = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for file in filenames:
+            file_count = file_count + 1
+            # print('sss', file_count)
+    if file_count > num:
+        clear_file(path)
+
+
+def clear_file(root_dir, minute=5):
+    for root, dir, names in os.walk(root_dir):
+        print(root, dir, names)
+        for name in names:
+            filename = os.path.join(root, name)
+            # print(filename)
+            # 文件创建时间戳
+            ct = os.stat(filename).st_ctime
+            # 当前时间戳
+            nt = time.time()
+            # 文件创建时间
+            tt = nt - ct
+            # 返回 分 秒
+            m, s = divmod(tt, 60)
+            # 小时，分钟
+            h, m = divmod(m, 60)
+            # 天，小时
+            d, h = divmod(h, 24)
+
+            if (m >= minute):  # & (filename.endswith('txt'))
+                # print("执行清理过期文件")
+                print('remove: ' + filename)
+                os.remove(filename)
+
+
 if __name__ == "__main__":
-    logging = init_logger(log_dir='log')
-    cfg = get_args(**Cfg)
+    logging = init_logger(log_dir='log')  # 初始化log文件，会自动生成 ./log 文件夹
+    # 清理log文件夹 超过5个，清理5分钟以前的文件
+    clear_log_folder('./log', 5)
+    # cfg = get_args(**Cfg)
+    cfg = get_args(**Cfg_footbridge)
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    logging.info(f'Using device {device}')
+    logging.info(f"Using device: {device}")
 
+    # 当前始终使用darknet来训练模型 还不知道如何更改 [question1]
     if cfg.use_darknet_cfg:
         model = Darknet(cfg.cfgfile)
+        logging.info(f"using darknet to train a model")
     else:
         model = Yolov4(cfg.pretrained, n_classes=cfg.classes)
+        logging.info(f"using Yolov4 to train a model")
 
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
+    logging.info(f'gpu device count: {torch.cuda.device_count()}')
+
+    # 选择训练模型的计算单元
     model.to(device=device)
 
     try:
@@ -624,6 +684,7 @@ if __name__ == "__main__":
               config=cfg,
               epochs=cfg.TRAIN_EPOCHS,
               device=device, )
+
     except KeyboardInterrupt:
         torch.save(model.state_dict(), 'INTERRUPTED.pth')
         logging.info('Saved interrupt')

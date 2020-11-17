@@ -6,6 +6,10 @@ from tool.yolo_layer import YoloLayer
 from tool.config import *
 from tool.torch_utils import *
 
+import warnings
+import matplotlib.cbook
+warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
+
 
 class Mish(torch.nn.Module):
     def __init__(self):

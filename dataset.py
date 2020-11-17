@@ -391,7 +391,8 @@ class Yolo_dataset(Dataset):
         """
         img_path = self.imgs[index]
         bboxes_with_cls_id = np.array(self.truth.get(img_path), dtype=np.float)
-        img = cv2.imread(os.path.join(self.cfg.dataset_dir, img_path))
+        # img = cv2.imread(os.path.join(self.cfg.dataset_dir, img_path))###
+        img = cv2.imread(img_path)
         # img_height, img_width = img.shape[:2]
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         # img = cv2.resize(img, (self.cfg.w, self.cfg.h))
@@ -399,17 +400,22 @@ class Yolo_dataset(Dataset):
         num_objs = len(bboxes_with_cls_id)
         target = {}
         # boxes to coco format
-        boxes = bboxes_with_cls_id[...,:4]
+        boxes = bboxes_with_cls_id[..., :4]
         boxes[..., 2:] = boxes[..., 2:] - boxes[..., :2]  # box width, box height
         target['boxes'] = torch.as_tensor(boxes, dtype=torch.float32)
-        target['labels'] = torch.as_tensor(bboxes_with_cls_id[...,-1].flatten(), dtype=torch.int64)
+        target['labels'] = torch.as_tensor(bboxes_with_cls_id[..., -1].flatten(), dtype=torch.int64)
         target['image_id'] = torch.tensor([get_image_id(img_path)])
-        target['area'] = (target['boxes'][:,3])*(target['boxes'][:,2])
+        target['area'] = (target['boxes'][:, 3]) * (target['boxes'][:, 2])
         target['iscrowd'] = torch.zeros((num_objs,), dtype=torch.int64)
         return img, target
 
 
-def get_image_id(filename:str) -> int:
+'''
+加载一个图片字典，获取独一无二的数字ID
+'''
+
+
+def get_image_id(filename: str) -> int:
     """
     Convert a string to a integer.
     Make sure that the images and the `image_id`s are in one-one correspondence.
@@ -417,27 +423,40 @@ def get_image_id(filename:str) -> int:
     in which case this function is unnecessary.
     For creating one's own `get_image_id` function, one can refer to
     https://github.com/google/automl/blob/master/efficientdet/dataset/create_pascal_tfrecord.py#L86
-    or refer to the following code (where the filenames are like 'level1_123.jpg')
+    or refer to the following code (where the filenames are like 'level1_123.jpg')  1123
     >>> lv, no = os.path.splitext(os.path.basename(filename))[0].split("_")
     >>> lv = lv.replace("level", "")
     >>> no = f"{int(no):04d}"
     >>> return int(lv+no)
     """
-    raise NotImplementedError("Create your own 'get_image_id' function")
-    lv, no = os.path.splitext(os.path.basename(filename))[0].split("_")
-    lv = lv.replace("level", "")
-    no = f"{int(no):04d}"
-    return int(lv+no)
+    # raise NotImplementedError("Create your own 'get_image_id' function")
+    img_dict = {}
+    f = open("./label/dict_footbridge_val.txt")
+    for line in f:
+        key = line.split('-')[0]
+        val = line.split('-')[1]
+        img_dict[key] = int(val)
+        # pass  # do something
+
+    f.close()
+    # tmp test
+    print(img_dict)
+
+    # lv, no = os.path.splitext(os.path.basename(filename))[0].split("-")
+    # lv = lv.replace("level", "")
+    # no = f"{int(no):04d}"
+    return img_dict[filename]
 
 
 if __name__ == "__main__":
-    from cfg import Cfg
+    # from cfg import Cfg
+    from cfg_footbridge import Cfg_footbridge
     import matplotlib.pyplot as plt
 
     random.seed(2020)
     np.random.seed(2020)
-    Cfg.dataset_dir = '/mnt/e/Dataset'
-    dataset = Yolo_dataset(Cfg.train_label, Cfg)
+    # Cfg_footbridge.dataset_dir = '/mnt/e/Dataset'
+    dataset = Yolo_dataset(Cfg_footbridge.train_label, Cfg_footbridge)
     for i in range(100):
         out_img, out_bboxes = dataset.__getitem__(i)
         a = draw_box(out_img.copy(), out_bboxes.astype(np.int32))

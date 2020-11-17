@@ -175,9 +175,9 @@ def yolo_forward_dynamic(output, conf_thresh, num_classes, anchors, num_anchors,
         cls_confs_list.append(output[:, begin + 5 : end])
 
     # Shape: [batch, num_anchors * 2, H, W]
-    bxy = torch.cat(bxy_list, dim=1)
+    bxy = torch.cat(bxy_list, dim=1)#按维数1（列）拼接
     # Shape: [batch, num_anchors * 2, H, W]
-    bwh = torch.cat(bwh_list, dim=1)
+    bwh = torch.cat(bwh_list, dim=1)#按维数1（列）拼接
 
     # Shape: [batch, num_anchors, H, W]
     det_confs = torch.cat(det_confs_list, dim=1)
