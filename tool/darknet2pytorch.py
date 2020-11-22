@@ -127,16 +127,20 @@ class EmptyModule(nn.Module):
 
 
 # support route shortcut and reorg
+# 用 members、blocks、net_info 和 module_list 对网络进行初始化。
+# pytorch 加载训练好的模型做inference
 class Darknet(nn.Module):
     def __init__(self, cfgfile, inference=False):
         super(Darknet, self).__init__()
-        self.inference = inference
-        self.training = not self.inference
+        self.inference = inference  # 预加载模型，类似于tf中的pretrain
+        self.training = not self.inference  # 没有预加载的模型，那么需要重新train
 
         self.blocks = parse_cfg(cfgfile)
-        self.width = int(self.blocks[0]['width'])
-        self.height = int(self.blocks[0]['height'])
+        self.width = int(self.blocks[0]['width'])   # 608
+        self.height = int(self.blocks[0]['height']) # 608
 
+        # 新建模型，模型内容是多个block，每个block是一个resnet，这些block为了提取特征，并且多个block将历史多次结果求和，防止梯度退化。
+        # 这里仅建立模型
         self.models = self.create_network(self.blocks)  # merge conv, bn,leaky
         self.loss = self.models[len(self.models) - 1]
 
@@ -149,16 +153,19 @@ class Darknet(nn.Module):
         self.header = torch.IntTensor([0, 0, 0, 0])
         self.seen = 0
 
+
+# 一，计算输出；二，尽早处理的方式转换输出检测特征图（例如转换之后，这些不同尺度的检测图就能够串联，不然会因为不同维度不可能实现串联）。
     def forward(self, x):
         ind = -2
         self.loss = None
         outputs = dict()
         out_boxes = []
+        # 这里，我们迭代 self.block[1:] 而不是 self.blocks，因为 self.blocks 的第一个元素是一个 net 块，它不属于前向传播。
+        # 源代码： modules = self.blocks[1:]
         for block in self.blocks:
             ind = ind + 1
             # if ind > 0:
             #    return x
-
             if block['type'] == 'net':
                 continue
             elif block['type'] in ['convolutional', 'maxpool', 'reorg', 'upsample', 'avgpool', 'softmax', 'connected']:

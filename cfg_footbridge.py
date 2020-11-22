@@ -78,4 +78,4 @@ Cfg_footbridge.TRAIN_TENSORBOARD_DIR = os.path.join(_BASE_DIR, 'log')
 
 Cfg_footbridge.iou_type = 'iou'  # 'giou', 'diou', 'ciou'
 
-Cfg_footbridge.keep_checkpoint_max = 10
+Cfg_footbridge.keep_checkpoint_max = 20

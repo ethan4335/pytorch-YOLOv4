@@ -299,6 +299,7 @@ def collate(batch):
     return images, bboxes
 
 
+# 模型结构已经确定
 def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=20, img_scale=0.5):
     # 阅读数据，关联了图片地址和标注信息
     train_dataset = Yolo_dataset(config.train_label, config, train=True)
@@ -367,6 +368,8 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
             momentum=config.momentum,
             weight_decay=config.decay,
         )
+
+    # 设置学习率
     scheduler = optim.lr_scheduler.LambdaLR(optimizer, burnin_schedule)
 
     criterion = Yolo_loss(device=device, batch=config.batch // config.subdivisions, n_classes=config.classes)
@@ -429,7 +432,7 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
 
             if cfg.use_darknet_cfg:
                 eval_model = Darknet(cfg.cfgfile, inference=True)
-            else:#test 6
+            else:  # test 6
                 eval_model = Yolov4(cfg.pretrained, n_classes=cfg.classes, inference=True)
             # eval_model = Yolov4(yolov4conv137weight=None, n_classes=config.classes, inference=True)
             if torch.cuda.device_count() > 1:
@@ -661,6 +664,7 @@ if __name__ == "__main__":
     # cfg = get_args(**Cfg)
     cfg = get_args(**Cfg_footbridge)
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu
+    cuda_info = torch.cuda.is_available()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f"Using device: {device}")
 
@@ -677,6 +681,7 @@ if __name__ == "__main__":
     logging.info(f'gpu device count: {torch.cuda.device_count()}')
 
     # 选择训练模型的计算单元
+    # r"""Moves and/or casts the parameters and buffers.
     model.to(device=device)
 
     try:
