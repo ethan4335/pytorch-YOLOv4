@@ -144,6 +144,7 @@ class Yolo_loss(nn.Module):
         self.device = device
         self.strides = [8, 16, 32]
         image_size = 608
+        print('Yolo_loss','image_size',image_size)
         self.n_classes = n_classes
         self.n_anchors = n_anchors
 
@@ -406,6 +407,7 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
                     scheduler.step()
                     model.zero_grad()
 
+# 中间结果可视化，调用 tensorboard
                 if global_step % (log_step * config.subdivisions) == 0:
                     writer.add_scalar('train/Loss', loss.item(), global_step)
                     writer.add_scalar('train/loss_xy', loss_xy.item(), global_step)
@@ -668,7 +670,7 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f"Using device: {device}")
 
-    # 当前始终使用darknet来训练模型 还不知道如何更改 [question1]
+    # 当前始终使用darknet来训练模型
     if cfg.use_darknet_cfg:
         model = Darknet(cfg.cfgfile)
         logging.info(f"using darknet to train a model")

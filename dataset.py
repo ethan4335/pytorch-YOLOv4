@@ -386,6 +386,7 @@ class Yolo_dataset(Dataset):
         out_bboxes1[:min(out_bboxes.shape[0], self.cfg.boxes)] = out_bboxes[:min(out_bboxes.shape[0], self.cfg.boxes)]
         return out_img, out_bboxes1
 
+    # 读取验证集有特殊的方式
     def _get_val_item(self, index):
         """
         """
