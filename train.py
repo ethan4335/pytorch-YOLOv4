@@ -140,6 +140,8 @@ def bboxes_iou(bboxes_a, bboxes_b, xyxy=True, GIoU=False, DIoU=False, CIoU=False
 
 class Yolo_loss(nn.Module):
     def __init__(self, n_classes=80, n_anchors=3, device=None, batch=2):
+        print("Yolo_loss(nn.Module): n_classes %s"%n_classes)
+        print("Yolo_loss(nn.Module): batch %s" % batch)
         super(Yolo_loss, self).__init__()
         self.device = device
         self.strides = [8, 16, 32]
@@ -339,11 +341,12 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
         Images size:     {config.width},{config.height}
         Optimizer:       {config.TRAIN_OPTIMIZER}
         Dataset classes: {config.classes}
-        Train pic path:  {config.dataset_dir}
         Train label path:{config.train_label}
         Val label path:  {config.val_label}
-        Pretrained:
     ''')
+    # Pretrained:
+    # Train pic path:  {config.dataset_dir}
+    # Validation size: {n_val}
 
     # learning rate setup
     def burnin_schedule(i):
@@ -385,18 +388,20 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
         # model.train()
         epoch_loss = 0
         epoch_step = 0
-
+        # tqdm 是一个进度条
         with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img', ncols=50) as pbar:
+            # enumerate() 函数用于将一个可遍历的数据对象(如列表、元组或字符串)组合为一个索引序列，同时列出数据和数据下标，一般用在 for 循环当中。
             for i, batch in enumerate(train_loader):
                 global_step += 1
                 epoch_step += 1
                 images = batch[0]
-                bboxes = batch[1]
+                bboxes = batch[1] # 真值 box
 
                 images = images.to(device=device, dtype=torch.float32)
                 bboxes = bboxes.to(device=device)
 
-                bboxes_pred = model(images)
+                bboxes_pred = model(images) # 预测的 box
+
                 loss, loss_xy, loss_wh, loss_obj, loss_cls, loss_l2 = criterion(bboxes_pred, bboxes)
                 # loss = loss / config.subdivisions
                 loss.backward()
@@ -435,6 +440,7 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
 
             if cfg.use_darknet_cfg:
                 eval_model = Darknet(cfg.cfgfile, inference=True)
+                print('test: def train: use_darknet')
             else:  # test 6
                 eval_model = Yolov4(cfg.pretrained, n_classes=cfg.classes, inference=True)
             # eval_model = Yolov4(yolov4conv137weight=None, n_classes=config.classes, inference=True)
@@ -442,10 +448,12 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
                 eval_model.load_state_dict(model.module.state_dict())
             else:
                 eval_model.load_state_dict(model.state_dict())
+                print('test: def train: model.state_dict()')
             eval_model.to(device)
             evaluator = evaluate(eval_model, val_loader, config, device)
             del eval_model
 
+            # output AP to tensorboard
             stats = evaluator.coco_eval['bbox'].stats
             writer.add_scalar('train/AP', stats[0], global_step)
             writer.add_scalar('train/AP50', stats[1], global_step)
@@ -459,6 +467,21 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
             writer.add_scalar('train/AR_small', stats[9], global_step)
             writer.add_scalar('train/AR_medium', stats[10], global_step)
             writer.add_scalar('train/AR_large', stats[11], global_step)
+
+            # zhumingjun add some logs
+            # print('pringting errors ......')
+            # logging.info('train/AP', stats[0], global_step)
+            # logging.info('train/AP50', stats[1], global_step)
+            # logging.info('train/AP75', stats[2], global_step)
+            # logging.info('train/AP_small', stats[3], global_step)
+            # logging.info('train/AP_medium', stats[4], global_step)
+            # logging.info('train/AP_large', stats[5], global_step)
+            # logging.info('train/AR1', stats[6], global_step)
+            # logging.info('train/AR10', stats[7], global_step)
+            # logging.info('train/AR100', stats[8], global_step)
+            # logging.info('train/AR_small', stats[9], global_step)
+            # logging.info('train/AR_medium', stats[10], global_step)
+            # logging.info('train/AR_large', stats[11], global_step)
 
             if save_cp:
                 try:
@@ -557,8 +580,8 @@ def get_args(**kwargs):
                         help='Load model from a .pth file')
     parser.add_argument('-g', '--gpu', metavar='G', type=str, default='-1',
                         help='GPU', dest='gpu')
-    parser.add_argument('-dir', '--data-dir', type=str, default=cfg2['dataset_dir'], help='dataset picture dir',
-                        dest='dataset_dir')
+    # parser.add_argument('-dir', '--data-dir', type=str, default=cfg2['dataset_dir'], help='dataset picture dir',
+    # dest='dataset_dir')
     # parser.add_argument('-pretrained', type=str, default=None, help='pretrained yolov4.conv.137')
     # parser.add_argument('-classes', type=int, default=None, help='dataset classes')
     parser.add_argument('-train_label_path', dest='train_label', type=str, default=cfg2['train_label'],

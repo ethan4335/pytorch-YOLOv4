@@ -58,7 +58,7 @@ Cfg_footbridge.train_label = os.path.join(_BASE_DIR, 'label', 'footbridge_train_
 Cfg_footbridge.val_label = os.path.join(_BASE_DIR, 'label' ,'footbridge_val.txt')
 Cfg_footbridge.TRAIN_OPTIMIZER = 'adam'
 # ethan add
-Cfg_footbridge.dataset_dir='D:/work_source/CV_Project/datasets/footbridge_20201111/train_mini/pic'
+# Cfg_footbridge.dataset_dir='D:/work_source/CV_Project/datasets/footbridge_20201111/train_mini/pic'
 Cfg_footbridge.pretrained = './pretrained/yolov4.conv.137.pth'
 '''
 image_path1 x1,y1,x2,y2,id x1,y1,x2,y2,id x1,y1,x2,y2,id ...

@@ -146,23 +146,23 @@ def _coco_remove_images_without_annotations(dataset, cat_list=None):
 def convert_to_coco_api(ds, bbox_fmt='voc'):
     """
     """
-    print("in function convert_to_coco_api...")
+    # print("in function convert_to_coco_api...")
     coco_ds = COCO()
     # annotation IDs need to start at 1, not 0, see torchvision issue #1530
     ann_id = 1
     dataset = {'images': [], 'categories': [], 'annotations': []}
     categories = set()
     for img_idx in range(len(ds)):
-        print(range(len(ds)))
+        # print(range(len(ds)))
         # find better way to get target
         # targets = ds.get_annotations(img_idx)
-        print(type(ds))
+        # print(type(ds))
         # print(ds.shape())
         # print(type(ds[0]))
         # print(ds[0])
-        img, targets = ds[img_idx] # 无法计算得到，很卡
+        img, targets = ds[img_idx]  # 无法计算得到，很卡
         image_id = targets["image_id"].item()
-        print('convert_to_coco: ',image_id)
+        print('convert_to_coco, image_id: %s ' % image_id)
         img_dict = {}
         img_dict['id'] = image_id
         img_dict['height'] = img.shape[-2]
@@ -173,7 +173,7 @@ def convert_to_coco_api(ds, bbox_fmt='voc'):
         if bbox_fmt.lower() == "voc":  # xmin, ymin, xmax, ymax
             bboxes[:, 2:] -= bboxes[:, :2]
         elif bbox_fmt.lower() == "yolo":  # xcen, ycen, w, h
-            bboxes[:, :2] = bboxes[:, :2] - bboxes[:, 2:]/2
+            bboxes[:, :2] = bboxes[:, :2] - bboxes[:, 2:] / 2
         elif bbox_fmt.lower() == "coco":
             pass
         else:
@@ -191,11 +191,8 @@ def convert_to_coco_api(ds, bbox_fmt='voc'):
             keypoints = keypoints.reshape(keypoints.shape[0], -1).tolist()
         num_objs = len(bboxes)
         for i in range(num_objs):
-            ann = {}
-            ann['image_id'] = image_id
-            print("for: ",image_id)
-            ann['bbox'] = bboxes[i]
-            ann['category_id'] = labels[i]
+            ann = {'image_id': image_id, 'bbox': bboxes[i], 'category_id': labels[i]}
+            # print("for: ", image_id)
             categories.add(labels[i])
             ann['area'] = areas[i]
             ann['iscrowd'] = iscrowd[i]
@@ -210,7 +207,7 @@ def convert_to_coco_api(ds, bbox_fmt='voc'):
     dataset['categories'] = [{'id': i} for i in sorted(categories)]
     coco_ds.dataset = dataset
     coco_ds.createIndex()
-    print("finish convert_to_coco_api...")
+    # print("finish convert_to_coco_api...")
     return coco_ds
 
 
