@@ -135,7 +135,7 @@ class Darknet(nn.Module):
         self.inference = inference  # 预加载模型，类似于tf中的pretrain
         self.training = not self.inference  # 没有预加载的模型，那么需要重新train
 
-        self.blocks = parse_cfg(cfgfile)
+        self.blocks = parse_cfg(cfgfile)    # 解析配置文件
         self.width = int(self.blocks[0]['width'])   # 608
         self.height = int(self.blocks[0]['height']) # 608
 

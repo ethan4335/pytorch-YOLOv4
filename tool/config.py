@@ -8,7 +8,7 @@ def parse_cfg(cfgfile):
     block = None
     line = fp.readline()
     while line != '':
-        line = line.rstrip()
+        line = line.rstrip() # 删除 string 字符串末尾的指定字符（默认为空格）.
         if line == '' or line[0] == '#':
             line = fp.readline()
             continue

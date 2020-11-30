@@ -144,7 +144,7 @@ class Yolo_loss(nn.Module):
         self.device = device
         self.strides = [8, 16, 32]
         image_size = 608
-        print('Yolo_loss','image_size',image_size)
+        print('Yolo_loss', 'image_size', image_size)
         self.n_classes = n_classes
         self.n_anchors = n_anchors
 
@@ -300,14 +300,16 @@ def collate(batch):
     return images, bboxes
 
 
-# 模型结构已经确定
+# 模型结构已经确定 train(model=model,config=cfg,epochs=cfg.TRAIN_EPOCHS,device=device)
 def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=20, img_scale=0.5):
     # 阅读数据，关联了图片地址和标注信息
     train_dataset = Yolo_dataset(config.train_label, config, train=True)
     val_dataset = Yolo_dataset(config.val_label, config, train=False)
 
     n_train = len(train_dataset)
+    print('n_train', n_train)
     n_val = len(val_dataset)
+    print('n_val', n_val)
 
     # 加载数据，加载为什么形式？[question]
     train_loader = DataLoader(train_dataset, batch_size=config.batch // config.subdivisions, shuffle=True,
@@ -372,7 +374,6 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
 
     # 设置学习率
     scheduler = optim.lr_scheduler.LambdaLR(optimizer, burnin_schedule)
-
     criterion = Yolo_loss(device=device, batch=config.batch // config.subdivisions, n_classes=config.classes)
     # scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=True, patience=6, min_lr=1e-7)
     # scheduler = CosineAnnealingWarmRestarts(optimizer, 0.001, 1e-6, 20)
@@ -407,7 +408,7 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
                     scheduler.step()
                     model.zero_grad()
 
-# 中间结果可视化，调用 tensorboard
+                # 中间结果可视化，调用 tensorboard
                 if global_step % (log_step * config.subdivisions) == 0:
                     writer.add_scalar('train/Loss', loss.item(), global_step)
                     writer.add_scalar('train/loss_xy', loss_xy.item(), global_step)
@@ -476,7 +477,6 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
                         os.remove(model_to_remove)
                     except:
                         logging.info(f'failed to remove {model_to_remove}')
-
     writer.close()
 
 
@@ -551,16 +551,19 @@ def get_args(**kwargs):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
     #                     help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.001,
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=cfg2['learning_rate'],
                         help='Learning rate', dest='learning_rate')
     parser.add_argument('-f', '--load', dest='load', type=str, default=None,
                         help='Load model from a .pth file')
     parser.add_argument('-g', '--gpu', metavar='G', type=str, default='-1',
                         help='GPU', dest='gpu')
-    # parser.add_argument('-dir', '--data-dir', type=str, default=None,help='dataset picture dir', dest='dataset_dir')
+    parser.add_argument('-dir', '--data-dir', type=str, default=cfg2['dataset_dir'], help='dataset picture dir',
+                        dest='dataset_dir')
     # parser.add_argument('-pretrained', type=str, default=None, help='pretrained yolov4.conv.137')
     # parser.add_argument('-classes', type=int, default=None, help='dataset classes')
-    # parser.add_argument('-train_label_path', dest='train_label', type=str, default=None, help="train label path")
+    parser.add_argument('-train_label_path', dest='train_label', type=str, default=cfg2['train_label'],
+                        help="train label path")
+    parser.add_argument('-val_label_path', dest='val_label', type=str, default=cfg2['val_label'], help="val label path")
     # parser.add_argument('-use_darknet_cfg', dest='dark_net', type=bool, default=False, help="if use darknet to train a model")
     parser.add_argument(
         '-optimizer', type=str, default='adam',
@@ -575,11 +578,9 @@ def get_args(**kwargs):
         help='maximum number of checkpoints to keep. If set 0, all checkpoints will be kept',
         dest='keep_checkpoint_max')
     args = vars(parser.parse_args())
-
     # for k in args.keys():
     #     cfg[k] = args.get(k)
     cfg2.update(args)
-
     return edict(cfg2)
 
 
@@ -652,14 +653,14 @@ def clear_file(root_dir, minute=5):
             h, m = divmod(m, 60)
             # 天，小时
             d, h = divmod(h, 24)
-
-            if (m >= minute):  # & (filename.endswith('txt'))
+            if m >= minute:  # & (filename.endswith('txt'))
                 # print("执行清理过期文件")
                 print('remove: ' + filename)
                 os.remove(filename)
 
 
 if __name__ == "__main__":
+
     logging = init_logger(log_dir='log')  # 初始化log文件，会自动生成 ./log 文件夹
     # 清理log文件夹 超过5个，清理5分钟以前的文件
     clear_log_folder('./log', 5)
@@ -677,20 +678,20 @@ if __name__ == "__main__":
     else:
         model = Yolov4(cfg.pretrained, n_classes=cfg.classes)
         logging.info(f"using Yolov4 to train a model")
-
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
     logging.info(f'gpu device count: {torch.cuda.device_count()}')
 
-    # 选择训练模型的计算单元
+    # 将模型加载到相应的设备中
     # r"""Moves and/or casts the parameters and buffers.
-    model.to(device=device)
+    model = model.to(device=device)
 
+    # ----------------------------------------------------------------
     try:
         train(model=model,
               config=cfg,
               epochs=cfg.TRAIN_EPOCHS,
-              device=device, )
+              device=device)
 
     except KeyboardInterrupt:
         torch.save(model.state_dict(), 'INTERRUPTED.pth')

@@ -24,9 +24,9 @@ from tool.torch_utils import *
 from tool.darknet2pytorch import Darknet
 import argparse
 
-# import warnings
-# import matplotlib.cbook
-# warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
+import warnings
+import matplotlib.cbook
+warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
 """hyper parameters"""
 use_cuda = False
