@@ -21,7 +21,7 @@ Cfg_footbridge = EasyDict()
 Cfg_footbridge.use_darknet_cfg = True
 Cfg_footbridge.cfgfile = os.path.join(_BASE_DIR, 'cfg', 'yolov4_footbridge.cfg')
 
-Cfg_footbridge.batch = 3
+Cfg_footbridge.batch = 1
 Cfg_footbridge.subdivisions = 1
 Cfg_footbridge.width = 608
 Cfg_footbridge.height = 608

@@ -12,32 +12,38 @@
 '''
 import json
 import os
+import sys
 
+# sys.argv[1]
 '''
 分训练集和验证集，先 3：7 开吧'''
 
 """hyper parameters"""
-ni_json_folder = r'D:\work_source\CV_Project\datasets\dataresult_xi_an_20201125'
-# source_pic_folder = r'D:\work_source\CV_Project\datasets\待标定_20201111'
+# input
+ni_json_folder = r'D:\work_source\CV_Project\datasets\xi_an_20201125\train\truth'
+pic_folder = 'D:/work_source/CV_Project/datasets/xi_an_20201125/train/pic'
 
-# train_pic_folder = 'D:/work_source/CV_Project/datasets/xi_an_20201125/train/pic'
-# train_truth_file = ''
-# val_pic_folder = 'D:/work_source/CV_Project/datasets/xi_an_20201125/val/pic'
-# val_truth_file = ''
+# output
+total_jspn_file = r'D:\work_source\CV_Project\datasets\xi_an_20201125\train\annotations_xi_an_20201125.csv'
+all_name_file = r'D:\work_source\CV_Project\datasets\xi_an_20201125\train\names_xi_an_20201125.csv'
+all_name_cn_file = r'D:\work_source\CV_Project\datasets\xi_an_20201125\train\names_xi_an_20201125_cn.csv'
+# output dict
+dict_output_path = 'D:/work_source/CV_Project/datasets/xi_an_20201125/train/dict_xi_an.txt'
 
-total_jspn_file = r'D:\work_source\CV_Project\datasets\xi_an_20201125\all\annotations_xi_an_20201125.txt'
-all_name_file = r'D:\work_source\CV_Project\datasets\xi_an_20201125\all\names_xi_an_20201125.txt'
-all_name_cn_file = r'D:\work_source\CV_Project\datasets\xi_an_20201125\all\names_xi_an_20201125_cn.txt'
+if len(sys.argv)>0:
+    ni_json_folder = sys.argv[1]
+    pic_folder = sys.argv[2]
 
-# read pic file
-# for root, dirs, files in os.walk(pic_folder):
-#     for pic in files:  # file name not dir
-#         pass
+    total_jspn_file = sys.argv[3]
+    all_name_file = sys.argv[4]
+    all_name_cn_file = sys.argv[5]
+    dict_output_path = sys.argv[6]
+
 
 # read navinfo json file
 annotations = []
 # 可以使用大括号 { } 或者 set() 函数创建集合，注意：创建一个空集合必须用 set() 而不是 { }，因为 { } 是用来创建一个空字典
-name_set = set()    # 类别
+name_set = set()  # 类别
 name_set_cn = {}
 
 file_quantity = 0
@@ -45,8 +51,12 @@ for fn in os.listdir(ni_json_folder):
     file_quantity += 1
 print("file_quantity: %s" % file_quantity)
 
-file_quantity_70 = int(file_quantity * 0.7)
-print("file_quantity_70: %s" % file_quantity_70)
+# file_quantity_70 = int(file_quantity * 0.7)
+# print("file_quantity_70: %s" % file_quantity_70)
+
+# 生成一个字典文件给模型训练使用，因为在前馈环节需要一个tensor独有量，这个字典给后面的get img id 使用
+img_dict = {}
+f_code_dict = {}
 
 file_num = 0
 for root, dirs, files in os.walk(ni_json_folder):
@@ -59,10 +69,16 @@ for root, dirs, files in os.walk(ni_json_folder):
             annotation_new = []
             objects = data['objects']
             have_target = False
-            annotation_new.append(str(img_name))
+            annotation_new.append(pic_folder + '/' + str(img_name))
             for obj in objects:
                 obj_points = obj['obj_points']
                 f_code = obj['f_code']
+                f_code_index = 0
+                if f_code in f_code_dict:
+                    f_code_index = f_code_dict[f_code]
+                else:
+                    len1 = len(f_code_dict)
+                    f_code_dict[f_code] = len1
                 f_name = obj['f_name']
                 name_set_cn[str(f_code)] = f_name
                 name_set.add(f_code)
@@ -77,7 +93,7 @@ for root, dirs, files in os.walk(ni_json_folder):
                         y1 = int(y)
                         x2 = x1 + int(w)
                         y2 = y1 + int(h)
-                        obj_new = str(x1) + ',' + str(y1) + ',' + str(x2) + ',' + str(y2) + ',' + str(f_code)
+                        obj_new = str(x1) + ',' + str(y1) + ',' + str(x2) + ',' + str(y2) + ',' + str(f_code_dict[f_code])
                         annotation_new.append(obj_new)
 
             # write one pic annotation to file
@@ -87,15 +103,29 @@ for root, dirs, files in os.walk(ni_json_folder):
                     ana_str = ana_str + str(ana) + ' '
                 annotations.append(ana_str)
 
-with open(total_jspn_file, 'w') as f:  # 如果filename不存在会自动创建， 'w'表示写数据，写之前会清空文件中的原有数据！
+            if have_target is not True:
+                try:
+                    os.remove(os.path.join(pic_folder, img_name))
+                except:
+                    pass
+            # dict
+            img_dict[img_name] = '{:012d}'.format(file_num - 1)
+
+# print(len(annotations))
+with open(total_jspn_file, 'w', encoding='utf-8') as f:  # 如果filename不存在会自动创建， 'w'表示写数据，写之前会清空文件中的原有数据！
     for line in annotations:
         f.write(str(line.strip()).replace('\'', '') + '\n')
         # f.newlines()
 
-# with open(new_name_file, 'w') as f:
-#     for line in name_set:
-#         f.write(str(line) + '\n')
-#
-# with open(new_name_cn_file, 'w') as f:
-#     for key in name_set_cn.keys():
-#         f.write(format(key) + ':' + name_set2[key] + '\n')
+with open(all_name_file, 'w', encoding='utf-8') as f:
+    for line in name_set:
+        f.write(str(line) + '\n')
+
+with open(all_name_cn_file, 'w', encoding='utf-8') as f:
+    for key in name_set_cn.keys():
+        f.write(format(key) + ':' + name_set_cn[key] + '\n')
+
+"""把图片字典输出到文件"""
+with open(dict_output_path, 'w') as dict_f:
+    for d in img_dict:
+        dict_f.write(d + '-' + img_dict[d] + '\n')

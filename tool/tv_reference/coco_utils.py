@@ -160,9 +160,9 @@ def convert_to_coco_api(ds, bbox_fmt='voc'):
         # print(ds.shape())
         # print(type(ds[0]))
         # print(ds[0])
-        img, targets = ds[img_idx]  # 无法计算得到，很卡
+        img, targets = ds[img_idx]
         image_id = targets["image_id"].item()
-        print('convert_to_coco, image_id: %s ' % image_id)
+        # print('convert_to_coco, image_id: %s ' % image_id)
         img_dict = {}
         img_dict['id'] = image_id
         img_dict['height'] = img.shape[-2]

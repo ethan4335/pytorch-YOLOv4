@@ -135,13 +135,19 @@ class Darknet(nn.Module):
         self.inference = inference  # 预加载模型，类似于tf中的pretrain
         self.training = not self.inference  # 没有预加载的模型，那么需要重新train
 
-        self.blocks = parse_cfg(cfgfile)    # 解析配置文件
+        """一共有163个block，除去第一个block是网络的一些参数，其他162个block正好对应了162层yolo结构"""
+        self.blocks = parse_cfg(cfgfile)    # 解析配置文件 获得模型结构，
         self.width = int(self.blocks[0]['width'])   # 608
         self.height = int(self.blocks[0]['height']) # 608
 
-        # 新建模型，模型内容是多个block，每个block是一个resnet，这些block为了提取特征，并且多个block将历史多次结果求和，防止梯度退化。
-        # 这里仅建立模型
+        # print('input size: %s'%self.width)
+
+        '''block 有 163 个blocks, yolov4 一共161层'''
         self.models = self.create_network(self.blocks)  # merge conv, bn,leaky
+        # print(len(self.models) - 1)
+        # print(self.models[0])
+        # print(self.models[161])
+        # !!! self.loss = YoloLayer
         self.loss = self.models[len(self.models) - 1]
 
         if self.blocks[(len(self.blocks) - 1)]['type'] == 'region':
@@ -240,30 +246,45 @@ class Darknet(nn.Module):
         print_cfg(self.blocks)
 
     def create_network(self, blocks):
-        models = nn.ModuleList()
 
+        """
+        nn.ModuleList仅仅类似于pytho中的list类型，只是将一系列层装入列表，并没有实现forward()方法，因此也不会有网络模型产生的副作用，
+        但它有和纯python中的list不同，用nn.ModuleList或者ParameterList包裹模型各个层之后，我们不光可以像python里的list一样对模型的各个层进行索引，
+        同时这些层的参数将会被自动注册，这些层的参数只有被正确注册之后，优化器才能发现和训练这些参数
+        这个操作只会生成一个空的list
+        """
+        models = nn.ModuleList()
         prev_filters = 3
         out_filters = []
         prev_stride = 1
         out_strides = []
         conv_id = 0
-        for block in blocks:
-            if block['type'] == 'net':
-                prev_filters = int(block['channels'])
-                continue
-            elif block['type'] == 'convolutional':
+        for block in blocks:    # 遍历 blocks 的时候，模型不断累加到一起
+            if block['type'] == 'net':  #网络参数
+                prev_filters = int(block['channels']) #第一次的卷积核个数就是看看有多少个通道
+                continue    # 一共就一个net参数表
+            elif block['type'] == 'convolutional':  #卷积层
                 conv_id = conv_id + 1
-                batch_normalize = int(block['batch_normalize'])
-                filters = int(block['filters'])
+                # 数据经过多层神经网络后,数据分布发生变化,导致各层参数需要不到调整适应分布变化,这会让收敛速度变慢,
+                # 超参数设定也变得比较复杂,这在论文里作者称作Internal Covariate Shift
+                # batch_normalize 用于防止梯度消失，就是将后面的数据分布进行规整，
+                batch_normalize = int(block['batch_normalize']) # always 1, 除了最后的输出层，每一层都是用了 batch_normalize
+                filters = int(block['filters']) # 卷积核，其实就是滤波器。在每次迭代中会进行更新参数
                 kernel_size = int(block['size'])
-                stride = int(block['stride'])
-                is_pad = int(block['pad'])
-                pad = (kernel_size - 1) // 2 if is_pad else 0
-                activation = block['activation']
-                model = nn.Sequential()
+                stride = int(block['stride'])   # 步长
+                is_pad = int(block['pad'])  # padding 过程 这里的padding 始终=1，仅用于表示：需要 padding
+                pad = (kernel_size - 1) // 2 if is_pad else 0   # padding 大小
+                activation = block['activation']    # 激活层，激活函数是用来加入非线性因素的，因为线性模型的表达能力不够。
+                model = nn.Sequential() # 模型为空，通过add_module添加模型结构
                 if batch_normalize:
+                    # add_module(self, name, module)
+                    # nn.Conv2d(self, in_channels, out_channels, kernel_size, stride=1,
+                    #                                    padding=0, dilation=1, groups=1,
+                    #                                     bias=True, padding_mode='zeros')
                     model.add_module('conv{0}'.format(conv_id),
                                      nn.Conv2d(prev_filters, filters, kernel_size, stride, pad, bias=False))
+                    # print('create_network: conv{0}'.format(conv_id))
+                    # 块标准化的目的就是让传输的数据合理的分布，加速训练的过程
                     model.add_module('bn{0}'.format(conv_id), nn.BatchNorm2d(filters))
                     # model.add_module('bn{0}'.format(conv_id), BN2d(filters))
                 else:
@@ -276,7 +297,7 @@ class Darknet(nn.Module):
                 elif activation == 'mish':
                     model.add_module('mish{0}'.format(conv_id), Mish())
                 else:
-                    print("convalution havn't activate {}".format(activation))
+                    print(conv_id,"convalution havn't activate {}".format(activation))
 
                 prev_filters = filters
                 out_filters.append(prev_filters)

@@ -21,8 +21,6 @@ import torch
 from torch.utils.data.dataset import Dataset
 
 
-
-
 def rand_uniform_strong(min, max):
     if min > max:
         swap = min
@@ -257,10 +255,22 @@ class Yolo_dataset(Dataset):
         truth = {}
         f = open(lable_path, 'r', encoding='utf-8')
         for line in f.readlines():
-            data = line.split(" ")
-            truth[data[0]] = []
-            for i in data[1:]:
-                truth[data[0]].append([int(float(j)) for j in i.split(',')])
+            # zhumingjun
+            tmp = line.split("jpg")
+            if ' ' in tmp[0]:
+                data = line.split(" ")
+                truth[data[0] + ' ' + data[1]] = []
+                for i in data[2:]:
+                    truth[data[0] + ' ' + data[1]].append([int(float(j)) for j in i.split(',')])
+            else:
+                data = line.split(" ")
+                truth[data[0]] = []
+                for i in data[1:]:
+                    truth[data[0]].append([int(float(j)) for j in i.split(',')])
+            # 原始代码
+            # truth[data[0]] = []
+            # for i in data[1:]:
+            #     truth[data[0]].append([int(float(j)) for j in i.split(',')])
 
         self.truth = truth
         self.imgs = list(self.truth.keys())
@@ -293,12 +303,18 @@ class Yolo_dataset(Dataset):
 
         for i in range(use_mixup + 1):
             if i != 0:
+                # zhifu
                 img_path = random.choice(list(self.truth.keys()))
                 bboxes = np.array(self.truth.get(img_path), dtype=np.float)
                 # zhumingjun 用于拼接文件路径，但是我在truth文件中已经写好了文件路径
                 # img_path = os.path.join(self.cfg.dataset_dir, img_path)
             img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            if img is None: # 为了解决中文路径问题
+                img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), -1)
+                # cv2.imencode('.jpg', img)[1].tofile('C:/测试1.jpg')  # 保存
+            else:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
             if img is None:
                 continue
             oh, ow, oc = img.shape
@@ -380,6 +396,7 @@ class Yolo_dataset(Dataset):
                 right_shift = int(min((self.cfg.w - cut_x), max(0, (-int(pright) * self.cfg.w / swidth))))
                 bot_shift = int(min(self.cfg.h - cut_y, max(0, (-int(pbot) * self.cfg.h / sheight))))
 
+                # zhumingjun 真值计算
                 out_img, out_bbox = blend_truth_mosaic(out_img, ai, truth.copy(), self.cfg.w, self.cfg.h, cut_x,
                                                        cut_y, i, left_shift, right_shift, top_shift, bot_shift)
                 out_bboxes.append(out_bbox)
@@ -436,7 +453,7 @@ def get_image_id(filename: str) -> int:
     """
     # raise NotImplementedError("Create your own 'get_image_id' function")
     img_dict = {}
-    f = open("./label/dict_footbridge_val.txt")
+    f = open(r'D:\work_source\CV_Project\datasets\xi_an_20201125\val\dict_xi_an.txt')
     for line in f:
         key = line.split('-')[0]
         val = line.split('-')[1]
@@ -445,11 +462,17 @@ def get_image_id(filename: str) -> int:
 
     f.close()
     # tmp test
-    print(img_dict)
+    # print(img_dict)
 
     # lv, no = os.path.splitext(os.path.basename(filename))[0].split("-")
     # lv = lv.replace("level", "")
     # no = f"{int(no):04d}"
+    if '/' in filename:
+        data = filename.split('/')
+        filename = data[len(data)-1]
+    elif '\\' in filename:
+        data = filename.split('\\')
+        filename = data[len(data) - 1]
     return img_dict[filename]
 
 

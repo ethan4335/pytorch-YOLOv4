@@ -12,6 +12,8 @@
 '''
 from cfg_footbridge import Cfg_footbridge
 
+# from cfg_xi_an import Cfg
+
 '''
 when you run the modules.py, you should use pytorch weights.
 '''
@@ -138,9 +140,12 @@ def bboxes_iou(bboxes_a, bboxes_b, xyxy=True, GIoU=False, DIoU=False, CIoU=False
     return iou
 
 
+
+
+
 class Yolo_loss(nn.Module):
     def __init__(self, n_classes=80, n_anchors=3, device=None, batch=2):
-        print("Yolo_loss(nn.Module): n_classes %s"%n_classes)
+        print("Yolo_loss(nn.Module): n_classes %s" % n_classes)
         print("Yolo_loss(nn.Module): batch %s" % batch)
         super(Yolo_loss, self).__init__()
         self.device = device
@@ -151,7 +156,7 @@ class Yolo_loss(nn.Module):
         self.n_anchors = n_anchors
 
         self.anchors = [[12, 16], [19, 36], [40, 28], [36, 75], [76, 55], [72, 146], [142, 110], [192, 243], [459, 401]]
-        self.anch_masks = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+        self.anch_masks = [[0, 1, 2], [3, 4, 5], [6, 7, 8]] # 类似于：锚框的标签
         self.ignore_thre = 0.5
 
         self.masked_anchors, self.ref_anchors, self.grid_x, self.grid_y, self.anchor_w, self.anchor_h = [], [], [], [], [], []
@@ -161,9 +166,13 @@ class Yolo_loss(nn.Module):
             masked_anchors = np.array([all_anchors_grid[j] for j in self.anch_masks[i]], dtype=np.float32)
             ref_anchors = np.zeros((len(all_anchors_grid), 4), dtype=np.float32)
             ref_anchors[:, 2:] = np.array(all_anchors_grid, dtype=np.float32)
+            # test = ref_anchors
+            # print(ref_anchors.shape)
             ref_anchors = torch.from_numpy(ref_anchors)
+            # print(ref_anchors.shape)
             # calculate pred - xywh obj cls
-            fsize = image_size // self.strides[i]
+            fsize = image_size // self.strides[i]   # 608/8=76
+            # arange(76,float) -->  shape(1,3,76,76)
             grid_x = torch.arange(fsize, dtype=torch.float).repeat(batch, 3, fsize, 1).to(device)
             grid_y = torch.arange(fsize, dtype=torch.float).repeat(batch, 3, fsize, 1).permute(0, 1, 3, 2).to(device)
             anchor_w = torch.from_numpy(masked_anchors[:, 0]).repeat(batch, fsize, fsize, 1).permute(0, 3, 1, 2).to(
@@ -313,13 +322,14 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
     n_val = len(val_dataset)
     print('n_val', n_val)
 
-    # 加载数据，加载为什么形式？[question]
+    # 加载数据
     train_loader = DataLoader(train_dataset, batch_size=config.batch // config.subdivisions, shuffle=True,
                               num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate)
 
     val_loader = DataLoader(val_dataset, batch_size=config.batch // config.subdivisions, shuffle=True, num_workers=8,
                             pin_memory=True, drop_last=True, collate_fn=val_collate)
 
+    # tensorboard 写日志
     writer = SummaryWriter(log_dir=config.TRAIN_TENSORBOARD_DIR,
                            filename_suffix=f'OPT_{config.TRAIN_OPTIMIZER}_LR_{config.learning_rate}_BS_{config.batch}_Sub_{config.subdivisions}_Size_{config.width}',
                            comment=f'OPT_{config.TRAIN_OPTIMIZER}_LR_{config.learning_rate}_BS_{config.batch}_Sub_{config.subdivisions}_Size_{config.width}')
@@ -344,14 +354,24 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
         Train label path:{config.train_label}
         Val label path:  {config.val_label}
     ''')
+
     # Pretrained:
     # Train pic path:  {config.dataset_dir}
     # Validation size: {n_val}
 
     # learning rate setup
+    '''
+    learning_rate: 标准学习率
+    burn_in: 学习率从 0 上升到 learning_rate 的 batch 数目
+    max_batches: 需要进行训练的 batch 数目
+    policy: 学习率调度的策略
+    steps: 在何处进行学习率衰减
+    scales: 学习率进行衰减的倍数
+    '''
+
     def burnin_schedule(i):
         if i < config.burn_in:
-            factor = pow(i / config.burn_in, 4)
+            factor = pow(i / config.burn_in, 4)  # pow() 方法返回（x 的 y 次方） 的值。
         elif i < config.steps[0]:
             factor = 1.0
         elif i < config.steps[1]:
@@ -382,8 +402,8 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
     # scheduler = CosineAnnealingWarmRestarts(optimizer, 0.001, 1e-6, 20)
 
     save_prefix = 'Yolov4_epoch'
-    saved_models = deque()
-    model.train()
+    saved_models = deque()  # deque 类似于 list ，两端可操作pop 和 append 等操作
+    model.train()   # 作用：启用 BatchNormalization 和 Dropout
     for epoch in range(epochs):
         # model.train()
         epoch_loss = 0
@@ -395,12 +415,12 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
                 global_step += 1
                 epoch_step += 1
                 images = batch[0]
-                bboxes = batch[1] # 真值 box
+                bboxes = batch[1]  # 真值 box
 
                 images = images.to(device=device, dtype=torch.float32)
                 bboxes = bboxes.to(device=device)
 
-                bboxes_pred = model(images) # 预测的 box
+                bboxes_pred = model(images)  # 预测的 box
 
                 loss, loss_xy, loss_wh, loss_obj, loss_cls, loss_l2 = criterion(bboxes_pred, bboxes)
                 # loss = loss / config.subdivisions
@@ -467,21 +487,6 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
             writer.add_scalar('train/AR_small', stats[9], global_step)
             writer.add_scalar('train/AR_medium', stats[10], global_step)
             writer.add_scalar('train/AR_large', stats[11], global_step)
-
-            # zhumingjun add some logs
-            # print('pringting errors ......')
-            # logging.info('train/AP', stats[0], global_step)
-            # logging.info('train/AP50', stats[1], global_step)
-            # logging.info('train/AP75', stats[2], global_step)
-            # logging.info('train/AP_small', stats[3], global_step)
-            # logging.info('train/AP_medium', stats[4], global_step)
-            # logging.info('train/AP_large', stats[5], global_step)
-            # logging.info('train/AR1', stats[6], global_step)
-            # logging.info('train/AR10', stats[7], global_step)
-            # logging.info('train/AR100', stats[8], global_step)
-            # logging.info('train/AR_small', stats[9], global_step)
-            # logging.info('train/AR_medium', stats[10], global_step)
-            # logging.info('train/AR_large', stats[11], global_step)
 
             if save_cp:
                 try:
@@ -660,7 +665,7 @@ def clear_log_folder(path, num):
 
 def clear_file(root_dir, minute=5):
     for root, dir, names in os.walk(root_dir):
-        print(root, dir, names)
+        # print(root, dir, names)
         for name in names:
             filename = os.path.join(root, name)
             # print(filename)
@@ -678,24 +683,22 @@ def clear_file(root_dir, minute=5):
             d, h = divmod(h, 24)
             if m >= minute:  # & (filename.endswith('txt'))
                 # print("执行清理过期文件")
-                print('remove: ' + filename)
+                # print('remove: ' + filename)
                 os.remove(filename)
 
 
 if __name__ == "__main__":
-
+    print("cuda count: %s" % torch.cuda.device_count())
     logging = init_logger(log_dir='log')  # 初始化log文件，会自动生成 ./log 文件夹
-    # 清理log文件夹 超过5个，清理5分钟以前的文件
     clear_log_folder('./log', 5)
-    # cfg = get_args(**Cfg)
     cfg = get_args(**Cfg_footbridge)
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu
-    cuda_info = torch.cuda.is_available()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')  # 照顾一下我的小笔记本
     logging.info(f"Using device: {device}")
 
-    # 当前始终使用darknet来训练模型
     if cfg.use_darknet_cfg:
+        """加载模型"""
         model = Darknet(cfg.cfgfile)
         logging.info(f"using darknet to train a model")
     else:

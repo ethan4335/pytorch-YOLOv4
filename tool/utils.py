@@ -153,6 +153,7 @@ def read_truths(lab_path):
 
 
 def load_class_names(namesfile):
+    print('load_class_names:',namesfile)
     class_names = []
     with open(namesfile, 'r') as fp:
         lines = fp.readlines()

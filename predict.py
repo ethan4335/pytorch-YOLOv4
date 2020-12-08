@@ -52,7 +52,9 @@ def detect_cv2(cfgfile, weightfile, imgfile, outfile):
         namesfile = 'D:/work_source/CV_Project/datasets/xi_an_20201125/all/names_xi_an_20201125.txt'
     class_names = load_class_names(namesfile)
 
+    print('imgfile: ',imgfile)
     img = cv2.imread(imgfile)
+    print(m.width, m.height)
     # print('demo pic size:', img.shape)
     sized = cv2.resize(img, (m.width, m.height))
     # print('demo pic resize to:',sized.shape)
