@@ -140,9 +140,6 @@ def bboxes_iou(bboxes_a, bboxes_b, xyxy=True, GIoU=False, DIoU=False, CIoU=False
     return iou
 
 
-
-
-
 class Yolo_loss(nn.Module):
     def __init__(self, n_classes=80, n_anchors=3, device=None, batch=2):
         print("Yolo_loss(nn.Module): n_classes %s" % n_classes)
@@ -156,7 +153,7 @@ class Yolo_loss(nn.Module):
         self.n_anchors = n_anchors
 
         self.anchors = [[12, 16], [19, 36], [40, 28], [36, 75], [76, 55], [72, 146], [142, 110], [192, 243], [459, 401]]
-        self.anch_masks = [[0, 1, 2], [3, 4, 5], [6, 7, 8]] # 类似于：锚框的标签
+        self.anch_masks = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]  # 类似于：锚框的标签
         self.ignore_thre = 0.5
 
         self.masked_anchors, self.ref_anchors, self.grid_x, self.grid_y, self.anchor_w, self.anchor_h = [], [], [], [], [], []
@@ -171,7 +168,7 @@ class Yolo_loss(nn.Module):
             ref_anchors = torch.from_numpy(ref_anchors)
             # print(ref_anchors.shape)
             # calculate pred - xywh obj cls
-            fsize = image_size // self.strides[i]   # 608/8=76
+            fsize = image_size // self.strides[i]  # 608/8=76
             # arange(76,float) -->  shape(1,3,76,76)
             grid_x = torch.arange(fsize, dtype=torch.float).repeat(batch, 3, fsize, 1).to(device)
             grid_y = torch.arange(fsize, dtype=torch.float).repeat(batch, 3, fsize, 1).permute(0, 1, 3, 2).to(device)
@@ -318,11 +315,12 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
     val_dataset = Yolo_dataset(config.val_label, config, train=False)
 
     n_train = len(train_dataset)
-    print('n_train', n_train)
+    print('train set amount:%s'%n_train)
     n_val = len(val_dataset)
-    print('n_val', n_val)
+    print('val set amount:%s'%n_val)
 
     # 加载数据
+    # DataLoader本质上就是一个iterable（跟python的内置类型list等一样），并利用多进程来加速batch data的处理，使用yield来使用有限的内存
     train_loader = DataLoader(train_dataset, batch_size=config.batch // config.subdivisions, shuffle=True,
                               num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate)
 
@@ -367,6 +365,12 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
     policy: 学习率调度的策略
     steps: 在何处进行学习率衰减
     scales: 学习率进行衰减的倍数
+    
+    burn_in：当迭代次数小于burn_in时，学习率为：
+    if (batch_num < net.burn_in) 
+        return net.learning_rate * pow((float)batch_num / net.burn_in, net.power) 
+    [network.c中出现的代码。]
+    policy：迭代次数大于burn_in后的学习率调整的策略，有constant, steps, exp, poly, step, sig, RANDOM，constant等方式。
     '''
 
     def burnin_schedule(i):
@@ -403,7 +407,7 @@ def train(model, device, config, epochs=5, batch_size=1, save_cp=True, log_step=
 
     save_prefix = 'Yolov4_epoch'
     saved_models = deque()  # deque 类似于 list ，两端可操作pop 和 append 等操作
-    model.train()   # 作用：启用 BatchNormalization 和 Dropout
+    model.train()  # 作用：启用 BatchNormalization 和 Dropout
     for epoch in range(epochs):
         # model.train()
         epoch_loss = 0
@@ -688,13 +692,12 @@ def clear_file(root_dir, minute=5):
 
 
 if __name__ == "__main__":
-    print("cuda count: %s" % torch.cuda.device_count())
     logging = init_logger(log_dir='log')  # 初始化log文件，会自动生成 ./log 文件夹
     clear_log_folder('./log', 5)
     cfg = get_args(**Cfg_footbridge)
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cpu')  # 照顾一下我的小笔记本
+    # device = torch.device('cpu')  # 照顾一下我的小笔记本
     logging.info(f"Using device: {device}")
 
     if cfg.use_darknet_cfg:

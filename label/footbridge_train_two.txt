@@ -1,0 +1,2 @@
+D:/work_source/CV_Project/datasets/footbridge_20201111/train_two/pic/IMG_1824_2520.jpg 1053,483,1121,669,0 866,202,997,413,2
+D:/work_source/CV_Project/datasets/footbridge_20201111/train_two/pic/IMG_1821_3180.jpg 850,21,921,146,0

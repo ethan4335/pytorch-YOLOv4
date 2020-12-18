@@ -1,0 +1,2 @@
+D:/work_source/CV_Project/datasets/footbridge_20201111/val_two/pic/IMG_2569.JPG 1459,1176,1953,2179,0 1681,1975,1817,2029,1
+D:/work_source/CV_Project/datasets/footbridge_20201111/val_two/pic/IMG_2570.JPG 2486,135,2966,1206,0

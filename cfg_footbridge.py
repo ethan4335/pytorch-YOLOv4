@@ -13,7 +13,6 @@
 import os
 from easydict import EasyDict
 
-
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 Cfg_footbridge = EasyDict()
@@ -45,7 +44,7 @@ Cfg_footbridge.mosaic = 1
 
 Cfg_footbridge.letter_box = 0
 Cfg_footbridge.jitter = 0.2
-Cfg_footbridge.classes = 4
+Cfg_footbridge.classes = 3
 Cfg_footbridge.track = 0
 Cfg_footbridge.w = Cfg_footbridge.width
 Cfg_footbridge.h = Cfg_footbridge.height
@@ -54,8 +53,8 @@ Cfg_footbridge.blur = 0
 Cfg_footbridge.gaussian = 0
 Cfg_footbridge.boxes = 60  # box num 60
 Cfg_footbridge.TRAIN_EPOCHS = 1
-Cfg_footbridge.train_label = os.path.join(_BASE_DIR, 'label', 'footbridge_train_mini.txt')
-Cfg_footbridge.val_label = os.path.join(_BASE_DIR, 'label' ,'footbridge_val.txt')
+Cfg_footbridge.train_label = os.path.join(_BASE_DIR, 'label', 'footbridge_train_two.txt')
+Cfg_footbridge.val_label = os.path.join(_BASE_DIR, 'label', 'footbridge_val_two.txt')
 Cfg_footbridge.TRAIN_OPTIMIZER = 'adam'
 # ethan add
 # Cfg_footbridge.dataset_dir='D:/work_source/CV_Project/datasets/footbridge_20201111/train_mini/pic'
@@ -78,4 +77,4 @@ Cfg_footbridge.TRAIN_TENSORBOARD_DIR = os.path.join(_BASE_DIR, 'log')
 
 Cfg_footbridge.iou_type = 'iou'  # 'giou', 'diou', 'ciou'
 
-Cfg_footbridge.keep_checkpoint_max = 20
+Cfg_footbridge.keep_checkpoint_max = 3

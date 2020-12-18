@@ -286,6 +286,11 @@ class Yolo_dataset(Dataset):
         # zhumingjun 用于拼接文件路径
         # img_path = os.path.join(self.cfg.dataset_dir, img_path)
         use_mixup = self.cfg.mixup
+        '''
+        BoF过程，数据增强
+        Mix-up在分类任务中，将两个图像按照不同的比例相加，例如A*0.1+B*0.9=C，那么C的label就是[0.1A， 0.9B]。
+        在目标检测中的做法就是将一些框相加，这些label中就多了一些不同置信度的框。
+        '''
         if random.randint(0, 1):
             use_mixup = 0
 
@@ -318,8 +323,11 @@ class Yolo_dataset(Dataset):
             if img is None:
                 continue
             oh, ow, oc = img.shape
+            # 利用数据抖动产生更多数据，YOLOv2中使用的是crop，filp，以及net层的angle，flip是随机的，
+            # jitter就是crop的参数，tiny-yolo-voc.cfg中jitter=.3，就是在0~0.3中进行crop
             dh, dw, dc = np.array(np.array([oh, ow, oc]) * self.cfg.jitter, dtype=np.int)
-
+            # hue 色调 sat 饱和度 exp 曝光度
+            # rand_uniform_strong 返回最大到最小之间的一个数
             dhue = rand_uniform_strong(-self.cfg.hue, self.cfg.hue)
             dsat = rand_scale(self.cfg.saturation)
             dexp = rand_scale(self.cfg.exposure)
@@ -453,7 +461,8 @@ def get_image_id(filename: str) -> int:
     """
     # raise NotImplementedError("Create your own 'get_image_id' function")
     img_dict = {}
-    f = open(r'D:\work_source\CV_Project\datasets\xi_an_20201125\val\dict_xi_an.txt')
+    # f = open(r'D:\work_source\CV_Project\datasets\xi_an_20201125\val\dict_xi_an.txt')
+    f = open('./label/dict_footbridge_val.txt')
     for line in f:
         key = line.split('-')[0]
         val = line.split('-')[1]
